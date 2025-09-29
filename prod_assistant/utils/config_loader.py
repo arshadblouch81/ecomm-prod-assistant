@@ -2,10 +2,15 @@
 from pathlib import Path
 import os
 import yaml
+from dotenv import load_dotenv
 
+# Load .env file from project root
 def _project_root() -> Path:
     # .../utils/config_loader.py -> parents[1] == project root
     return Path(__file__).resolve().parents[1]
+
+# Load environment variables from .env file at project root
+load_dotenv(_project_root() / ".env")
 
 def load_config(config_path: str | None = None) -> dict:
     """

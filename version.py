@@ -23,7 +23,8 @@ packages = [
     "docx",
     "python-pptx",
     "deepeval",
-    "jinja2"
+    "jinja2",
+    "fastmcp"
     
 ]
 for pkg in packages:

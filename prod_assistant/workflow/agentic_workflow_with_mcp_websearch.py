@@ -47,7 +47,7 @@ class AgenticRAG:
         last_message = messages[-1].content
 
         if any(word in last_message.lower() for word in ["price", "review", "product"]):
-            return {"messages": [HumanMessage(content="TOOL: retriever")]}
+            return {"messages": [HumanMessage(content="TOOL: retriever, " + last_message)]}
         else:
             prompt = ChatPromptTemplate.from_template(
                 "You are a helpful assistant. Answer the user directly.\n\nQuestion: {question}\nAnswer:"
@@ -150,5 +150,5 @@ class AgenticRAG:
 
 if __name__ == "__main__":
     rag_agent = AgenticRAG()
-    answer = rag_agent.run("What is the price of iPhone 15?")
+    answer = rag_agent.run("What is the price of 24 Permalink ?")
     print("\nFinal Answer:\n", answer)
