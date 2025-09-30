@@ -76,7 +76,6 @@ class Retriever:
                 base_compressor=compressor, 
                 base_retriever=mmr_retriever
             )
-            
             return self.retriever
             
     def call_retriever(self,query):
