@@ -5,15 +5,32 @@ Parameters:
   ClusterName:
     Type: String
     Default: product-assistant-cluster
+
   NodeInstanceType:
     Type: String
-    Default: t3.medium
+    Description: EC2 instance type for EKS node group. Must be Free Tier eligible if using Free Tier.
+    AllowedValues:
+      - t3.micro
+      - t2.micro
+      - t3.small
+      - t2.small
+    Default: t3.micro
+
   DesiredCapacity:
     Type: Number
+    Description: Number of nodes in the EKS node group.
     Default: 2
+
   ECRRepositoryName:
     Type: String
     Default: product-assistant
+
+  IsFreeTier:
+    Type: String
+    AllowedValues:
+      - true
+      - false
+    Default: true
 
 Resources:
   ### --- VPC ---
