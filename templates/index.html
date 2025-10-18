@@ -87,19 +87,27 @@
 </head>
 <body>
 
+    <!-- Chatbot Floating Icon -->
+   
+
     <div class="hero d-flex flex-column align-items-center justify-content-center text-center" style="height: 90vh; background: linear-gradient(to right, #eef2f3, #8e9eab); animation: fadeIn 1s ease-out;">
         <h1 class="display-3 font-weight-bold mb-3 gradient-text">Welcome to ShopBuddy</h1>
         <p class="lead mb-4 text-dark">Your Smart Shopping Companion – Ask about prices, offers, reviews & more!</p>
         <img src="/static/f6634145-b9d9-4ea1-b5e5-cb705192c6fd.png" alt="ShopBuddy Assistant" class="img-fluid shadow-lg" style="max-width: 300px; border-radius: 20px; transform: scale(1); transition: transform 0.3s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+        <div   id="btnChat">
+            <i class="fas fa-comments fa-lg"></i>
+        </div>
     </div>
 
-
+    <div style="position: fixed; top: 10px; right: 10px;">
+        <button id="logout"> Logout</button>
+    </div>
 
     <!-- Chatbot Floating Icon -->
     <div class="chatbot-icon" id="openChat">
         <i class="fas fa-comments fa-lg"></i>
     </div>
-
+ 
     <!-- Chatbot Popup -->
     <div class="chat-popup" id="chatPopup">
         <div class="card">
@@ -132,8 +140,10 @@
     <!-- JS Logic -->
     <script>
         $(document).ready(function() {
+          const accessToken = localStorage.getItem("access_token");
             // Open Chat Popup
             $("#openChat").click(function() {
+                
                 $("#chatPopup").fadeIn();
             });
 
@@ -142,6 +152,44 @@
                 $("#chatPopup").fadeOut();
             });
 
+              $("#logout").on("click", function() {
+                const accessToken = localStorage.getItem("access_token");
+                 localStorage.removeItem("access_token");
+                 window.location.href = "/"; // Redirect to login page
+
+            });
+        $("#btnChat").on("click", function() {
+          
+            const access_token = localStorage.getItem("access_token");
+            // In browser console, run this:
+          
+            console.log("Token:", access_token);
+            console.log("Token length:", access_token ? access_token.length : 0);
+
+            // Test the request manually
+            fetch('/api/email-message/', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${access_token}`,
+                    'Content-Type': 'application/json'
+                },
+                body : 'This is test message'
+            })
+            .then(r => r.text())
+            .then(text => {
+                console.log("Response:", text);
+              //  url= JSON.parse(text);
+               // window.location.href = url.redirect_url;
+
+              
+            });
+           
+         
+           
+
+            
+        });
+          
             // Handle Chat Submit
             $("#messageArea").on("submit", function(event) {
                 const date = new Date();
@@ -149,7 +197,8 @@
                 const minute = String(date.getMinutes()).padStart(2, '0');
                 const str_time = `${hour}:${minute}`;
                 var rawText = $("#text").val();
-
+             
+                const accessToken = localStorage.getItem("access_token");
                 var userHtml = `
                     <div class="d-flex justify-content-end mb-2">
                         <div class="msg_cotainer_send">${rawText}
@@ -165,6 +214,9 @@
                     data: { msg: rawText },
                     type: "POST",
                     url: "/get",
+                     headers: {
+                     'Authorization': `Bearer ${accessToken}`
+                  },
                 }).done(function(data) {
                     var botHtml = `
                         <div class="d-flex justify-content-start mb-2">
@@ -179,6 +231,8 @@
 
                 event.preventDefault();
             });
+          
+             
         });
     </script>
     <!-- 👇 Add this just before </body> -->

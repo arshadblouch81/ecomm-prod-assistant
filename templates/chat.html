@@ -131,6 +131,7 @@
 
     <!-- JS Logic -->
     <script>
+        const accessToken = localStorage.getItem("access_token");
         $(document).ready(function() {
             // Open Chat Popup
             $("#openChat").click(function() {
@@ -165,6 +166,8 @@
                     data: { msg: rawText },
                     type: "POST",
                     url: "/get",
+                     headers: {
+                     'Authorization': `Bearer ${accessToken}`
                 }).done(function(data) {
                     var botHtml = `
                         <div class="d-flex justify-content-start mb-2">

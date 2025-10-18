@@ -4,8 +4,9 @@ import json
 from dotenv import load_dotenv
 from utils.config_loader import load_config
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
-from langchain_openai import ChatOpenAI
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_groq import ChatGroq
+
 from logger import GLOBAL_LOGGER as log
 from exception.custom_exception import ProductAssistantException
 import asyncio
@@ -36,13 +37,65 @@ class ModelLoader:
     """
     Loads embedding models and LLMs based on config and environment.
     """
-
+  
     def __init__(self):
         self.api_key_mgr = ApiKeyManager()
         self.config = load_config()
         log.info("YAML config loaded", config_keys=list(self.config.keys()))
 
-    
+    async def load_embeddings_async(self):
+        """
+        Load and return embedding model .
+        """
+        try:
+            provider = self.config["embedding_model"].get("provider", "openai")
+            model_name = self.config["embedding_model"]["model_name"]
+            log.info("Loading embedding model", model=model_name)
+            
+            # Patch: Ensure an event loop exists for gRPC aio
+            try:
+                asyncio.get_running_loop()
+            except RuntimeError:
+                asyncio.set_event_loop(asyncio.new_event_loop())
+
+            # Run the synchronous OpenAIEmbeddings initialization in executor
+            # to avoid blocking the event loop
+            loop = asyncio.get_event_loop()
+            if (provider == "openai"):
+                embeddings = await loop.run_in_executor(
+                    None,
+                    lambda: OpenAIEmbeddings(
+                        model=model_name,
+                        dimensions=1536,
+                        openai_api_key=self.api_key_mgr.get("OPENAI_API_KEY")
+                    )
+                )
+            elif (provider == "google"):
+                embeddings = await loop.run_in_executor(
+                    None,
+                    lambda: GoogleGenerativeAIEmbeddings(
+                        model=model_name,
+                        google_api_key=self.api_key_mgr.get("GOOGLE_API_KEY")
+                    )
+                )
+            elif (provider == "hf"):
+                from langchain_huggingface import HuggingFaceEmbeddings
+                  
+                embeddings = await loop.run_in_executor(
+                    None,
+                    lambda: HuggingFaceEmbeddings(
+                        model=model_name,
+                        model_kwargs={'device': 'cpu'},  # or 'cuda' for GPU
+                        encode_kwargs={'normalize_embeddings': True}
+                    )
+                )
+            
+            log.info("Embedding model loaded successfully")
+            return embeddings
+            
+        except Exception as e:
+            log.error("Error loading embedding model", error=str(e))
+            raise ProductAssistantException("Failed to load embedding model", sys)
 
     def load_embeddings(self):
         """
@@ -51,17 +104,20 @@ class ModelLoader:
         try:
             model_name = self.config["embedding_model"]["model_name"]
             log.info("Loading embedding model", model=model_name)
+            # truncated_vector = full_vector[:1024]
+          
 
-            # Patch: Ensure an event loop exists for gRPC aio
-            try:
-                asyncio.get_running_loop()
-            except RuntimeError:
-                asyncio.set_event_loop(asyncio.new_event_loop())
-
-            return GoogleGenerativeAIEmbeddings(
+            # embeddings GoogleGenerativeAIEmbeddings(
+            #     model=model_name,
+            #     google_api_key=self.api_key_mgr.get("GOOGLE_API_KEY")  # type: ignore
+            # )
+            embeddings = OpenAIEmbeddings(
                 model=model_name,
-                google_api_key=self.api_key_mgr.get("GOOGLE_API_KEY")  # type: ignore
+                dimensions=1536,  # Can be: 256, 512, 1024, 3072
+                openai_api_key=self.api_key_mgr.get("OPENAI_API_KEY")  # type: ignore
             )
+            
+            return embeddings
         except Exception as e:
             log.error("Error loading embedding model", error=str(e))
             raise ProductAssistantException("Failed to load embedding model", sys)
@@ -72,7 +128,7 @@ class ModelLoader:
         Load and return the configured LLM model.
         """
         llm_block = self.config["llm"]
-        provider_key = os.getenv("LLM_PROVIDER", "openai")
+        provider_key = "google" # os.getenv("LLM_PROVIDER", "openai")
 
         if provider_key not in llm_block:
             log.error("LLM provider not found in config", provider=provider_key)
@@ -117,7 +173,7 @@ if __name__ == "__main__":
     loader = ModelLoader()
 
     # Test Embedding
-    embeddings = loader.load_embeddings()
+    embeddings = asyncio.run(loader.load_embeddings_async())
     print(f"Embedding Model Loaded: {embeddings}")
     result = embeddings.embed_query("Hello, how are you?")
     print(f"Embedding Result: {result}")

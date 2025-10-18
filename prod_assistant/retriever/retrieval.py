@@ -7,6 +7,7 @@ from utils.model_loader import ModelLoader
 from dotenv import load_dotenv
 import sys
 from pathlib import Path
+import asyncio
 
 from langchain.retrievers.document_compressors import LLMChainFilter
 from langchain.retrievers import ContextualCompressionRetriever
@@ -42,56 +43,66 @@ class Retriever:
         self.db_api_endpoint = os.getenv("ASTRA_DB_API_ENDPOINT")
         self.db_application_token = os.getenv("ASTRA_DB_APPLICATION_TOKEN")
         self.db_keyspace = os.getenv("ASTRA_DB_KEYSPACE")
-    
+        
+        print("Environment variables loaded successfully.")
+
     def load_retriever(self):
-        """_summary_
-        """
-        if not self.vstore:
-            collection_name = self.config["astra_db"]["collection_name"]
-            
-            self.vstore =AstraDBVectorStore(
-                embedding= self.model_loader.load_embeddings(),
-                collection_name=collection_name,
-                api_endpoint=self.db_api_endpoint,
-                token=self.db_application_token,
-                namespace=self.db_keyspace,
+        """Initializes the retriever asynchronously."""
+        try:
+                
+            if not self.vstore:
+                collection_name = self.config["astra_db"]["collection_name"]
+
+                embedding = self.model_loader.load_embeddings()  # Await if it's async
+                print("Embedding model loaded successfully.")
+                self.vstore = AstraDBVectorStore(
+                    embedding=embedding,
+                    collection_name=collection_name,
+                    api_endpoint=self.db_api_endpoint,
+                    token=self.db_application_token,
+                    namespace=self.db_keyspace,
                 )
-        if not self.retriever:
-            top_k = self.config["retriever"]["top_k"] if "retriever" in self.config else 3
-            
-            mmr_retriever=self.vstore.as_retriever(
-                search_type="mmr",
-                search_kwargs={"k": top_k,
-                                "fetch_k": 20,
-                                "lambda_mult": 0.7,
-                                "score_threshold": 0.6
-                               })
-            print("Retriever loaded successfully.")
-            
-            llm = self.model_loader.load_llm()
-            
-            compressor=LLMChainFilter.from_llm(llm)
-            
-            self.retriever = ContextualCompressionRetriever(
-                base_compressor=compressor, 
-                base_retriever=mmr_retriever
-            )
+                print("AstraDB Vector Store initialized successfully.")
+            if not self.retriever:
+                top_k = self.config.get("retriever", {}).get("top_k", 50)
+
+                mmr_retriever = self.vstore.as_retriever(
+                    search_type="mmr",
+                    search_kwargs={
+                        "k": top_k,
+                        "fetch_k": 20,
+                        "lambda_mult": 0.7,
+                        "score_threshold": 0.6
+                    }
+                )
+                print("Retriever loaded successfully.")
+
+                llm =  self.model_loader.load_llm()  # Await if it's async
+                compressor = LLMChainFilter.from_llm(llm)
+
+                self.retriever = ContextualCompressionRetriever(
+                    base_compressor=compressor,
+                    base_retriever=mmr_retriever
+                )
+
             return self.retriever
+        except Exception as e:
+            print(e)
             
     def call_retriever(self,query):
         """_summary_
         """
-        retriever=self.load_retriever()
-        output=retriever.invoke(query)
+        retriever= self.load_retriever()
+        output= retriever.invoke(query)
         return output
     
 if __name__=='__main__':
     user_query = "Can you suggest good budget iPhone under 1,00,00 INR?"
     
     retriever_obj = Retriever()
-    
-    retrieved_docs = retriever_obj.call_retriever(user_query)
-    
+
+    retrieved_docs =retriever_obj.call_retriever(user_query)
+
     def _format_docs(docs) -> str:
         if not docs:
             return "No relevant documents found."

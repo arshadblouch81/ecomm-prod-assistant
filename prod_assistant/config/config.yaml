@@ -2,11 +2,22 @@ astra_db:
   collection_name: "prodassistant"
 
 embedding_model:
-  provider: "google"
-  model_name: "models/text-embedding-004"
+  provider: "openai" 
+  model_name: "text-embedding-3-small"
 
 retriever:
-  top_k: 10
+  top_k: 5
+
+sql_server:
+  connection_string: 
+      "DRIVER={ODBC Driver 18 for SQL Server};
+      SERVER=20.213.152.181,1433;
+      DATABASE=ADAMAS;
+      UID=adamas;
+      PWD=samada2002;
+      TrustServerCertificate=yes;
+      "
+    
 
 llm:
   groq:
@@ -24,4 +35,12 @@ llm:
     provider: "openai"
     model_name: "gpt-4o"
     temperature: 0
-    
+
+security:
+  SECRET_KEY: "24241sgdsg4352353425gghewgvgnkhtvcbn43643cvb"  # Change this!
+  ALGORITHM: "HS256"
+  ACCESS_TOKEN_EXPIRE_MINUTES: 30
+
+apiendpoint:
+  base_url : "https://adamas.traccs.cloud:9000"
+  from_email : "arshad@adamas.ner.au"

@@ -1,12 +1,35 @@
+from asyncio.log import logger
 import os
+from exception.document_exception import DocumentPortalException
+from fastapi import Path
+from logger.custom_logger import CustomLogger
 import pandas as pd
 from dotenv import load_dotenv
-from typing import List
+from typing import Iterable, List
 from langchain_core.documents import Document
 from langchain_astradb import AstraDBVectorStore
 from prod_assistant.utils.model_loader import ModelLoader
 from prod_assistant.utils.config_loader import load_config
+from astrapy import DataAPIClient
 
+from langchain_community.document_loaders  import (
+    PyPDFLoader,
+    Docx2txtLoader,
+    TextLoader,
+    UnstructuredMarkdownLoader,
+    UnstructuredPowerPointLoader,
+    UnstructuredExcelLoader,
+    CSVLoader,
+    JSONLoader
+    
+)
+from pathlib import Path
+import tempfile
+
+from langchain.schema import Document
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+log = CustomLogger().get_logger(__name__)
 class DataIngestion:
     """
     Class to handle data transformation and ingestion into AstraDB vector store.
@@ -101,15 +124,9 @@ class DataIngestion:
     def store_in_vector_db(self, documents: List[Document]):
         """
         Store documents into AstraDB vector store.
-        """
-        collection_name=self.config["astra_db"]["collection_name"]
-        vstore = AstraDBVectorStore(
-            embedding= self.model_loader.load_embeddings(),
-            collection_name=collection_name,
-            api_endpoint=self.db_api_endpoint,
-            token=self.db_application_token,
-            namespace=self.db_keyspace,
-        )
+        """      
+        
+        vstore = self.setup_vector_store()
 
         inserted_ids = vstore.add_documents(documents)
         print(f"Successfully inserted {len(inserted_ids)} documents into AstraDB.")
@@ -130,6 +147,92 @@ class DataIngestion:
         for res in results:
             print(f"Content: {res.page_content}\nMetadata: {res.metadata}\n")
 
+   
+   
+
+    def setup_vector_store(self):
+        """Setup vector store with correct dimension"""
+        
+        # Load embeddings
+        embeddings = self.model_loader.load_embeddings()
+        
+        
+        # # Test dimension
+        # test_vector = embeddings.embed_query("test")
+        # vector_dimension = len(test_vector)
+        # print(f"Embedding dimension: {vector_dimension}")  # Should be 768 for Gemini
+        
+        collection_name = self.config["astra_db"]["collection_name"]
+        
+       
+        vstore = AstraDBVectorStore(
+            embedding=embeddings,
+            collection_name=collection_name,
+            api_endpoint=self.db_api_endpoint,
+            token=self.db_application_token,
+            namespace=self.db_keyspace,
+        )
+        
+        return vstore
+    def save_data(self, files: Iterable):  # Accept UploadedFile objects
+        """
+        Read uploaded files in-memory, split content, and store in vector DB.
+        """
+        try:
+            raw_documents = []
+
+            for file in files:
+                ext = Path(file.name).suffix.lower()
+
+                # Read file content based on extension
+                if ext in [".txt", ".md", ".csv", ".json"]:
+                    content = file.getvalue().decode("utf-8", errors="ignore")
+                elif ext == ".pdf":
+                    # Optional: use PyMuPDF or pdfplumber to extract text from file.read()
+                    raise NotImplementedError("PDF in-memory parsing not yet supported here.")
+                else:
+                    continue  # Skip unsupported formats
+
+                # Wrap into Document object
+                doc = Document(page_content=content, metadata={"source": file.name})
+                raw_documents.append(doc)
+
+            if not raw_documents:
+                raise ValueError("No supported files were uploaded.")
+
+            # Split documents
+            splitter = RecursiveCharacterTextSplitter(
+                chunk_size=1000,
+                chunk_overlap=100,
+                separators=["\n\n", "\n", " ", ""],
+            )
+            split_documents = splitter.split_documents(raw_documents)
+
+            # Store in vector DB
+            _vstore = self.setup_vector_store()
+            # vstore, _ = _vstore.add_documents(split_documents)
+              # Add documents - returns only list of IDs
+            document_ids = _vstore.add_documents(split_documents)
+            
+            logger.info(
+                f"Successfully ingested {len(document_ids)} documents",
+                extra={
+                    "document_count": len(document_ids),
+                    "collection": _vstore.collection_name
+                }
+            )
+            
+            # Return vector store and IDs if needed
+            return {
+                "vector_store": _vstore,
+                "document_ids": document_ids,
+                "count": len(document_ids)
+            }
+           
+
+        except Exception as e:
+            log.error("Failed processing uploaded files", error=str(e))
+            raise DocumentPortalException("Error processing uploaded files", e) from e
 # Run if this file is executed directly
 if __name__ == "__main__":
     ingestion = DataIngestion()
