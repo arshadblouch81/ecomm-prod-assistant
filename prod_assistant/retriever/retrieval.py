@@ -7,7 +7,6 @@ from utils.model_loader import ModelLoader
 from dotenv import load_dotenv
 import sys
 from pathlib import Path
-import asyncio
 
 from langchain.retrievers.document_compressors import LLMChainFilter
 from langchain.retrievers import ContextualCompressionRetriever

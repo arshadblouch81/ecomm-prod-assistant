@@ -1,6 +1,6 @@
 from typing import TypedDict, Literal
 from langgraph.checkpoint.memory import MemorySaver
-from langgraph.types import RetryPolicy
+
 from langgraph.graph import StateGraph, START, END
 from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -19,6 +19,11 @@ from retriever.conventional_retreiver import ConversationalRAG
 from retriever.retrieval import Retriever  
 from datetime import datetime
 import json
+from langgraph.checkpoint.sqlite import SqliteSaver
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+import sqlite3
+
+
 
 load_dotenv()
 log = structlog.get_logger()
@@ -31,6 +36,13 @@ retriever_obj = Retriever()
 retriever = retriever_obj.load_retriever()
 pending_approvals = {}
 
+os.makedirs("checkpoints", exist_ok=True)
+
+conn = sqlite3.connect(database="checkpoints/email_tracker.db", check_same_thread=False)
+checkpointer = SqliteSaver(conn=conn)
+
+
+ 
 # Define the structure for email classification
 class EmailClassification(TypedDict):
     intent: Literal["question","issue", "bug", "billing", "feature", "complex"]
@@ -54,15 +66,24 @@ class EmailAgentState(TypedDict):
     # Generated content
     draft_response: str | None
     
-
-
-def read_email(state: EmailAgentState) -> dict:
+def read_email(state: EmailAgentState) -> Command:
     """Extract and parse email content"""
-    # In production, this would connect to your email service
     log.info("Extract and parse email content")
-    return {
-        "messages": [HumanMessage(content=f"Processing email: {state['email_content']}")]
-    }
+    return Command(
+        update={
+            "messages": [HumanMessage(content=f"Processing email: {state['email_content']}")]
+        },
+        # Optional: specify next node if needed
+        # goto="classify_intent"
+    )
+
+# def read_email(state: EmailAgentState) -> dict:
+#     """Extract and parse email content"""
+#     # In production, this would connect to your email service
+#     log.info("Extract and parse email content")
+#     return {
+#         "messages": [HumanMessage(content=f"Processing email: {state['email_content']}")]
+#     }
 
 def classify_intent(state: EmailAgentState) -> Command[Literal["search_documentation", "human_review", "draft_response", "bug_tracking"]]:
     """Use LLM to classify email intent and urgency, then route accordingly"""
@@ -184,7 +205,7 @@ def draft_response(state: EmailAgentState) -> Command[Literal["human_review", "s
             classification.get('urgency') in ['high', 'critical'] or
             classification.get('intent') == 'complex'
         )
-        needs_review=True
+        needs_review=False
         # Route to appropriate next node
 
         log.info("Draft created!!!!!!!!!!")
@@ -222,6 +243,12 @@ def human_review(state: EmailAgentState) -> Command[Literal["send_reply", END]]:
         log.info("Pause for human review using interrupt and route based on decision")
         # This is the ONLY interrupt() call - it returns human's decision
         human_decision = interrupt(approval_request)
+        # try:
+        #     human_decision = interrupt(approval_request)
+        # except Exception as e:
+        #     log.error(f"Error calling interrupt: {str(e)}", exc_info=True)
+        #     raise
+        
         log.info("Human response received")
         # This code runs AFTER approval is received via API
         if human_decision is None:
@@ -247,7 +274,7 @@ def human_review(state: EmailAgentState) -> Command[Literal["send_reply", END]]:
                 goto=END
             )
     except Exception as e:
-        log.error("Error in Human Review", str(e))
+        log.error("Error in Human Review - " + str(e))
         
 
 def format_email(state: EmailAgentState) -> dict:
@@ -285,7 +312,7 @@ def format_email(state: EmailAgentState) -> dict:
 
     return email_msg
       
-def send_reply(state: EmailAgentState) -> dict:
+def send_reply(state: EmailAgentState) -> Command:
     """Send the email response via external API with Bearer authentication"""
     log.info("Send the email response via external API with Bearer authentication")
     
@@ -340,15 +367,18 @@ def build_email_agent():
     workflow.add_node("draft_response", draft_response)
     workflow.add_node("human_review", human_review)
     workflow.add_node("send_reply", send_reply)
+  
 
     # Add only the essential edges
     workflow.add_edge(START, "read_email")
-    workflow.add_edge("read_email", "classify_intent")
+    workflow.add_edge("read_email", "classify_intent")   
     workflow.add_edge("send_reply", END)
 
     # Compile with checkpointer for persistence
-    memory = MemorySaver()
-    app  = workflow.compile(checkpointer=memory)
+    # memory = MemorySaver()
+    # checkpointer = AsyncSqliteSaver("checkpoints/email_tracker.db")
+
+    app  = workflow.compile(checkpointer=checkpointer)
     return app
 
 # Initialize agent
@@ -358,21 +388,22 @@ if __name__ =="__main__" :
     # Test with an urgent billing issue
     initial_state = {
         "email_content": "RE: Facing Server Connection Issue with App Version 25.08.001 while accessing documents?",
-        "sender_email": "arshadblouch@gmail.com",
+        "sender_email": "arshadblouch81@gmail.com",
         "email_id": "email_123",
         "messages": []
     }
-
+    import asyncio
+    agent_app = (build_email_agent())
     # Run with a thread_id for persistence
     config = {"configurable": {"thread_id": "customer_123"}}
     result = agent_app.invoke(initial_state, config)
     # The graph will pause at human_review
-    print(f"Draft ready for review: {result['draft_response'][:100]}...")
+    # print(f"Draft ready for review: {result['draft_response'][:100]}...")
 
     # When ready, provide human input to resume
     from langgraph.types import Command
     state = agent_app.get_state(config)
-    if state.next[0] == 'human_review' :
+    if state.next and "human_review" in state.next: 
         human_response = Command(
             resume={
                 "approved": True,
@@ -384,5 +415,5 @@ if __name__ =="__main__" :
         final_result = agent_app.invoke(human_response, config)
     else :
         final_result = result
-    print(f"Email sent successfully!")
-    print(f"Message\n {result['email_content']}")
+    print("Email sent successfully!")
+    print(f"Message\n {result['draft_response']}")

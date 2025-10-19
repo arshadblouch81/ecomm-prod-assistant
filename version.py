@@ -6,6 +6,7 @@ packages = [
     "langchain_groq",
     "langchain_google_genai",
     "langchain-community",
+    "langgraph",
     "faiss-cpu",
     "structlog",
     "PyMuPDF",

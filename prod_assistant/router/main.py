@@ -39,6 +39,7 @@
 # passlib[bcrypt]
 # python-multipart
 
+import structlog
 import uvicorn
 from fastapi import FastAPI, Header, Query, Request, Form, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -58,7 +59,7 @@ from fastapi.responses import RedirectResponse
 import secrets
 from  model.models import ApprovalResponse, EmailRequest
 from fastapi import WebSocket, WebSocketDisconnect
-from workflow.email_tracker_workflow import agent_app, pending_approvals, EmailAgentState
+from workflow.email_tracker_workflow import agent_app,build_email_agent, pending_approvals, EmailAgentState
 import asyncio
 from langgraph.types import Command
 
@@ -75,7 +76,7 @@ security = HTTPBearer()
 raw_password = "secure123"  # or any user input
 
 app = FastAPI()
-
+log = structlog.get_logger()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
@@ -318,7 +319,7 @@ async def chat_api_message2(request: Request):
             "thread_id": token  # Unique identifier for this conversation
         }
     }
-    print(state) 
+    print(config) 
     print("calling workflow chatbot!!!!!!!!!!!!!!!!!!!!!!!!!!!")
     # Invoke with config
     result = chatbot.invoke(state, config=config)
@@ -435,7 +436,7 @@ async def notify_pending_approval(approval_data: dict):
         websocket_connections.remove(conn)
 
 @app.post("/api/agent/process-email")
-async def process_email(request: EmailRequest):
+def process_email(request: EmailRequest):
     """Start agent workflow for an email"""
     
     config = {
@@ -459,9 +460,17 @@ async def process_email(request: EmailRequest):
         "config": config,
         "status": "processing"
     }
+    log.info(f"[START] Processing email { request.email_id}")
+    
+    result=agent_app.invoke(initial_state, config)
     
     # Run agent asynchronously
-    asyncio.create_task(run_agent_workflow(initial_state, config, request.email_id))
+    # asyncio.create_task(run_agent_workflow(initial_state, config, request.email_id))
+    #  run_agent_workflow(initial_state, config, request.email_id)
+    # agent_app = build_email_agent()
+    # import anyio
+
+    # result = await anyio.to_thread.run_sync(agent_app.invoke(initial_state, config))
     
     return {
         "status": "started",
@@ -469,33 +478,49 @@ async def process_email(request: EmailRequest):
         "message": "Agent workflow initiated"
     }
 
-async def run_agent_workflow(initial_state: dict, config: dict, email_id: str):
-    """Run the agent workflow"""
+async def run_agent_workflow(initial_state: EmailAgentState, config: dict, email_id: str):
+    """Run the agent workflow with proper interrupt handling"""
     try:
+        #get checpointer
+       
+        agent_app = build_email_agent()
         # Run until interrupt
         async for event in agent_app.astream(initial_state, config, stream_mode="values"):
-            print(f"Agent event: {event}")
+            log.debug(f"[EVENT] {email_id}: {event.get('approval_status', 'processing')}")
+            active_threads[email_id]["state"] = event
             
-            # Check if we hit an interrupt
+            # Run graph and collect events
             state_snapshot = agent_app.get_state(config)
-            if state_snapshot.next and "human_review" in state_snapshot.next:
+          
+            if state_snapshot.next and "human_review" in state_snapshot.next: 
                 # We've hit the interrupt point
                 print(f"Interrupt reached for {email_id}")
                 
                 # Get the interrupt value
                 approval_data = pending_approvals.get(email_id, {}).get("data", {})
-                
-                # Notify frontend via WebSocket
-                await notify_pending_approval(approval_data)
-                
+                                
                 # Update thread status
                 active_threads[email_id]["status"] = "awaiting_approval"
-                break
+                
+                 # Notify frontend via WebSocket
+                await notify_pending_approval(approval_data)
+                
+                continue
             elif "END" in state_snapshot.next :
                 active_threads[email_id]["status"] = "send"
                 print("\nFinal draft\n" + event['draft_response'])
                 return event['draft_response']
         
+        
+        # Stream ended - workflow completed
+        state_snapshot = agent_app.get_state(config)
+        if state_snapshot and state_snapshot.values:
+            final_state = state_snapshot.values
+            log.info(f"[COMPLETED] Workflow for {email_id}")
+            active_threads[email_id]["status"] = "completed"
+            active_threads[email_id]["state"] = final_state
+            log.info(f"Final approval status: {final_state.get('approval_status')}")   
+            
     except Exception as e:
         print(f"Error in workflow: {str(e)}")
         active_threads[email_id]["status"] = "error"
@@ -524,9 +549,8 @@ async def get_approval_status(email_id: str):
     return pending_approvals[email_id]
 
 
-
 @app.post("/api/agent/approve")
-async def approve_response(approval: ApprovalResponse):
+def approve_response_prev(approval: ApprovalResponse):
     """Submit approval decision and resume agent workflow using Command"""
     
     email_id = approval.email_id
@@ -543,6 +567,22 @@ async def approve_response(approval: ApprovalResponse):
     
     try:
         # Create Command with resume to send back to the interrupt point
+          # When ready, provide human input to resume
+   
+        # state = agent_app.get_state(config)
+        # if state.next and "human_review" in state.next: 
+        #     human_response = Command(
+        #         resume={
+        #             "approved": approval.approved,
+        #             "edited_response": approval.edited_response if approval.edited_response else "",
+        #             "feedback": approval.feedback if approval.feedback else ""
+        #         }
+        #     )
+
+        #     # Resume execution
+        #     result = agent_app.invoke(human_response, config)
+        
+        
         human_response = Command(
             resume={
                 "approved": approval.approved,
@@ -552,7 +592,12 @@ async def approve_response(approval: ApprovalResponse):
         )
         
         # Resume execution from the interrupt point
+        # agent_app = build_email_agent()
         result = agent_app.invoke(human_response, config)
+        # result = await agent_app.ainvoke(
+        #     input=human_response,  # Send the decision
+        #     config=config
+        # )
         
         # result = None
         # async for event in agent_app.astream(
@@ -560,9 +605,10 @@ async def approve_response(approval: ApprovalResponse):
         #     config,
         #     stream_mode="values"
         # ):
-        #     print(f"Agent resumed with event: {event}")
-        #     result = event
-        
+            # print(f"Agent resumed with event: {event}")
+            # print(f"Agent resumed with event: ")
+            # result = event
+        print("Agent resumed with event: ")
         # Mark as resolved
         pending_approvals[email_id]["status"] = "resolved"
         active_threads[email_id]["status"] = "completed"
@@ -607,6 +653,7 @@ async def approve_response_old(approval: ApprovalResponse):
     try:
         # Resume the agent with the approval decision
         # This updates the state and resumes from the interrupt
+        agent_app = build_email_agent()
         agent_app.update_state(config, approval_decision, as_node="human_review")
         
         # Continue execution
