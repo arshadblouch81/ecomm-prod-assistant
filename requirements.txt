@@ -29,4 +29,5 @@ python-multipart
 langchain_huggingface == 0.3.1
 langgraph-checkpoint-sqlite
 aiosqlite
+
 -e .

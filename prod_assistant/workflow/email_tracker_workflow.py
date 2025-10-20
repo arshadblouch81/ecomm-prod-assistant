@@ -242,12 +242,12 @@ def human_review(state: EmailAgentState) -> Command[Literal["send_reply", END]]:
         }
         log.info("Pause for human review using interrupt and route based on decision")
         # This is the ONLY interrupt() call - it returns human's decision
-        human_decision = interrupt(approval_request)
-        # try:
-        #     human_decision = interrupt(approval_request)
-        # except Exception as e:
-        #     log.error(f"Error calling interrupt: {str(e)}", exc_info=True)
-        #     raise
+        # human_decision = interrupt(approval_request)
+        try:
+            human_decision = interrupt(approval_request)
+        except Exception as e:
+            log.error(f"Error calling interrupt: {str(e)}", exc_info=True)
+            # raise
         
         log.info("Human response received")
         # This code runs AFTER approval is received via API
@@ -288,18 +288,18 @@ def format_email(state: EmailAgentState) -> dict:
         "ServiceId": state["email_id"],
         "ToAddress": [
             {
-                "Name": "Arshad Abbas",
+                "Name": "Adamas Client",
                 "Address": state['sender_email']
             }
         ],
         "FromAddress": {
-            "Name": "Adamas Support",
-            "Address": "arshad@adamas.net.au"
+            "Name": configure["apiendpoint"]["from_name"],
+            "Address": configure["apiendpoint"]["from_email"]
         },
         "CCAddress": [
             {
                 "Name": "Arshad Abbas",
-                "Address": configure["apiendpoint"]["from_email"]
+                "Address": "arshadblouch@gmail.com"
             }
         ],
         "Subject": "Reply to Email",

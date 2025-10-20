@@ -83,7 +83,11 @@ for thread_id in st.session_state['chat_threads'][::-1]:
 for message in st.session_state['message_history']:
     with st.chat_message(message['role']):
         st.text(message['content'])
-
+# st.text("message length : " + str(len(st.session_state['message_history'])))
+if len(st.session_state['message_history']) == 0 :        
+    st.session_state['message_history'].append({'role': 'user', 'content': "Welcome to the Adamas Chat support. How can I help you??"})
+    st.text("Welcome to the Adamas Chat support. How can I help you??")
+     
 user_input = st.chat_input('Type here')
 
 if user_input:
@@ -130,7 +134,7 @@ if user_input:
                         )
 
                 # Stream ONLY assistant tokens
-                if isinstance(message_chunk, AIMessage):
+                if isinstance(message_chunk, AIMessage) and not (message_chunk.content.lower() =="yes"  or message_chunk.content.lower()=="no"):
                     yield message_chunk.content
 
         ai_message = st.write_stream(ai_only_stream())
@@ -141,4 +145,5 @@ if user_input:
                 label="✅ Tool finished", state="complete", expanded=False
             )
 
+    
     st.session_state['message_history'].append({'role': 'assistant', 'content': ai_message})

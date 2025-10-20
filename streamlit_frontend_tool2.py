@@ -41,7 +41,7 @@ session_token = query_params.get("session_token", None)
 
 # using langraph for chatbot
 # Your Streamlit Chat Interface
-# st.title("Chat Interface - Welcome ")
+st.title("Adamas Chatbot")
 async_initialize()
 def generate_thread_id():
     thread_id = uuid.uuid4()

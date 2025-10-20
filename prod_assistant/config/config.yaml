@@ -44,3 +44,4 @@ security:
 apiendpoint:
   base_url : "https://adamas.traccs.cloud:9000"
   from_email : "arshad@adamas.ner.au"
+  from_name : "Arshad Abbas"
