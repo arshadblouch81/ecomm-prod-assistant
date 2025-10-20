@@ -25,7 +25,13 @@ packages = [
     "python-pptx",
     "deepeval",
     "jinja2",
-    "fastmcp"
+    "fastmcp",
+    "langgraph-checkpoint-sqlite",
+    "aiosqlite",
+    "angchain_astradb",
+    "pyodbc",
+    "python-jose[cryptography]"
+    "passlib[bcrypt]"
     
 ]
 for pkg in packages:
