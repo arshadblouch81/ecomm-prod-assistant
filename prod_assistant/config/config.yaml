@@ -6,7 +6,7 @@ embedding_model:
   model_name: "text-embedding-3-small"
 
 retriever:
-  top_k: 5
+  top_k: 10
 
 sql_server:
   connection_string: 
