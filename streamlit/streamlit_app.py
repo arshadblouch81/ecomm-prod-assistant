@@ -33,7 +33,7 @@ def load_first_message(thread_id):
     messages = state.values.get('messages', [])
     
     if messages:
-        return messages[0].content
+        return messages[0].content[:50]
     else:
         return 'New Chat of ' + str(thread_id)
 
