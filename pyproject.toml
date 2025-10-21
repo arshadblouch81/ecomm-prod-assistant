@@ -7,7 +7,7 @@ name = "ecomm_prod_assistant"
 version = "0.1.0"
 description = "product Assistant tools"
 readme = "README.md"
-requires-python = "=3.10.8"
+requires-python = "==3.10.8"
 dependencies = [
      "beautifulsoup4==4.13.5",
     "fastapi==0.116.1",
