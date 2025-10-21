@@ -162,15 +162,16 @@ checkpointer = SqliteSaver(conn=conn)
 graph = StateGraph(ChatState)
 
 # Add nodes
-graph.add_node("chat_node", chat_node)
+# graph.add_node("chat_node", chat_node)
 graph.add_node("database", retreive_data_from_database)
 graph.add_node("format_message_node", format_message_node)
 
 
 # Add edges
+
 graph.add_edge(START, "database")
-graph.add_edge("database", "chat_node")
-graph.add_edge("chat_node", "format_message_node")
+# graph.add_edge("database", "chat_node")
+graph.add_edge("database", "format_message_node")
 graph.add_edge("format_message_node", END)
 
 
