@@ -82,9 +82,7 @@ class ChatState(TypedDict):
 # 4. Nodes
 # -------------------
 def chat_node(state: ChatState):
-    """LLM node that may answer or request a tool call. 
-     call tool only once, format message from response coming from tool call
-     If no message returned by tool then just format regret message with proper format"""
+    """Re write the text to answer questions properly, remove duplicate and ir-relevant text and refine the context"""
     messages = state["messages"]
     response = llm.invoke(messages)
     return {"messages": [response]}
@@ -164,14 +162,15 @@ checkpointer = SqliteSaver(conn=conn)
 graph = StateGraph(ChatState)
 
 # Add nodes
-# graph.add_node("chat_node", chat_node)
+graph.add_node("chat_node", chat_node)
 graph.add_node("database", retreive_data_from_database)
 graph.add_node("format_message_node", format_message_node)
 
 
 # Add edges
 graph.add_edge(START, "database")
-graph.add_edge("database", "format_message_node")
+graph.add_edge("database", "chat_node")
+graph.add_edge("chat_node", "format_message_node")
 graph.add_edge("format_message_node", END)
 
 
