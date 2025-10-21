@@ -127,21 +127,15 @@ def format_message_node(state: ChatState) :
        # Build the prompt with formatted context
         draft_prompt = f"""            
         You are an assistant designed to answer questions using the provided context. Rely only on the retrieved 
-        information to form your response. Draft a response to this customer email with below structure:
+        information to form your response. 
          Guidelines:
+        - First say thanks for approaching us.
         - Be professional and helpful
         - Address their specific concern
-        - Use the provided documentation when relevant
-
-        Hi [name of Customer if exists then show],
-        First say thanks for approaching us and express regret if the user is facing any issue.
-        In the message body, address the given problem or question from 
+        - address the given problem or question from text below
          {chr(10).join(messages)}.
        
-        Say thanks again.
-
-        Regards,  
-        Adamas Chatobot      
+        If there is no enough information to answer then apologize for not having enough information  
 
        
         """
