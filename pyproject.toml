@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]         # PEP 660 editable support ke liye naya se
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ecomm-prod-assistant"
+name = "ecomm_prod_assistant"
 version = "0.1.0"
 description = "product Assistant tools"
 readme = "README.md"
@@ -50,11 +50,11 @@ license = { text = "Proprietary" }
 
 # Optional: CLI command (python -m pip install -e . ke baad yeh create hoga)
 [project.scripts]
-ecomm-assistant = "ecomm-prod-assistant.cli:main"
+ecomm-assistant = "ecomm_prod_assistant.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["prod_assistant"]
-include = ["ecomm-prod-assistant*"]
+include = ["ecomm_prod_assistant*"]
 
 [tool.uv.workspace]
 members = [
@@ -62,7 +62,7 @@ members = [
 ]
 
 [tool.uv.sources]
-ecomm-prod-assistant = { workspace = true }
+ecomm_prod_assistant = { workspace = true }
 
 [dependency-groups]
 dev = [
