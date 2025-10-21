@@ -1,9 +1,11 @@
 
 import streamlit as st
-from  langgraph_tool_backend import chatbot, retrieve_all_threads
+from  prod_assistant.chatbot.langgraph_tool_backend import chatbot, retrieve_all_threads
 from langchain_core.messages import HumanMessage, ToolMessage, AIMessage
 import uuid
-
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 # **************************************** utility functions *************************
 
 def generate_thread_id():
