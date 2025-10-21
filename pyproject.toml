@@ -38,8 +38,8 @@ dependencies = [
     "aiosqlite==0.21.0",
     "python-jose[cryptography]",
     "passlib[bcrypt]",
-    "langchain_astradb",
-    "-e ."
+    "langchain_astradb"
+    
     
     
 ]
@@ -95,8 +95,8 @@ dev = [
     "aiosqlite==0.21.0",
     "python-jose[cryptography]",
     "passlib[bcrypt]",
-    "langchain_astradb",
-    "-e ."
+    "langchain_astradb"
+    
     
 ]
 
