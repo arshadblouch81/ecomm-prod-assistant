@@ -7,7 +7,7 @@ name = "ecomm-prod-assistant"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.10.8"
 dependencies = [
      "beautifulsoup4==4.13.5",
     "fastapi==0.116.1",
@@ -38,8 +38,8 @@ dependencies = [
     "aiosqlite==0.21.0",
     "python-jose[cryptography]",
     "passlib[bcrypt]",
-    "langchain_astradb",
-    "-e ."
+    "langchain_astradb"
+    
 ]
 
 # Optional: authors, license
@@ -93,7 +93,7 @@ dev = [
     "aiosqlite==0.21.0",
     "python-jose[cryptography]",
     "passlib[bcrypt]",
-    "langchain_astradb",
-    "-e ."
+    "langchain_astradb"
+    
 ]
 
