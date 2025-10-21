@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ecomm-prod-assistant"
 version = "0.1.0"
-description = "Add your description here"
+description = "product Assistant tools"
 readme = "README.md"
 requires-python = ">=3.10.8"
 dependencies = [
@@ -21,8 +21,8 @@ dependencies = [
     "langchain-mcp-adapters==0.1.10",
     "langchain-openai==0.3.32",
     "langchain-huggingface==0.3.1",
-    "langgraph==0.6.7",
-    "langgraph-checkpoint-sqlite==2.0.11",
+    "langgraph>=0.6.7",
+    "langgraph-checkpoint-sqlite>=2.0.11",
     "lxml==6.0.1",
     "python-dotenv==1.1.1",
     "python-multipart==0.0.20",
@@ -38,21 +38,23 @@ dependencies = [
     "aiosqlite==0.21.0",
     "python-jose[cryptography]",
     "passlib[bcrypt]",
-    "langchain_astradb"
+    "langchain_astradb",
+    "-e ."
+    
     
 ]
 
 # Optional: authors, license
-authors = [{ name = "Sunny Savita" }]
+authors = [{ name = "Arshad Abbas" }]
 license = { text = "Proprietary" }
 
 # Optional: CLI command (python -m pip install -e . ke baad yeh create hoga)
 [project.scripts]
-ecomm-assistant = "ecomm_prod_assistant.cli:main"
+ecomm-assistant = "ecomm-prod-assistant.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["prod_assistant"]
-include = ["ecomm_prod_assistant*"]
+include = ["ecomm-prod-assistant*"]
 
 [tool.uv.workspace]
 members = [
@@ -76,8 +78,8 @@ dev = [
     "langchain-mcp-adapters==0.1.10",
     "langchain-openai==0.3.32",
     "langchain-huggingface==0.3.1",
-    "langgraph==0.6.7",
-    "langgraph-checkpoint-sqlite==2.0.11",
+    "langgraph>=0.6.7",
+    "langgraph-checkpoint-sqlite>=2.0.11",
     "lxml==6.0.1",
     "python-dotenv==1.1.1",
     "python-multipart==0.0.20",
@@ -93,7 +95,8 @@ dev = [
     "aiosqlite==0.21.0",
     "python-jose[cryptography]",
     "passlib[bcrypt]",
-    "langchain_astradb"
+    "langchain_astradb",
+    "-e ."
     
 ]
 
