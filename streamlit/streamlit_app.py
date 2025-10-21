@@ -54,7 +54,7 @@ add_thread(st.session_state['thread_id'])
 # if 'sidebar_buttons' not in st.session_state:
 #     st.session_state['sidebar_buttons'] = []
 
-st.sidebar.title('LangGraph Chatbot')
+st.sidebar.title('Adamas Chatbot')
 
 if st.sidebar.button('New Chat'):  
     reset_chat()
