@@ -436,7 +436,7 @@ async def notify_pending_approval(approval_data: dict):
         websocket_connections.remove(conn)
 
 @app.post("/api/agent/process-email")
-def process_email(request: EmailRequest):
+async def process_email(request: EmailRequest):
     """Start agent workflow for an email"""
     
     config = {
@@ -466,7 +466,8 @@ def process_email(request: EmailRequest):
     
     # Run agent asynchronously
     # asyncio.create_task(run_agent_workflow(initial_state, config, request.email_id))
-    #  run_agent_workflow(initial_state, config, request.email_id)
+    
+    # run_agent_workflow(initial_state, config, request.email_id)
     # agent_app = build_email_agent()
     # import anyio
 
@@ -483,7 +484,7 @@ async def run_agent_workflow(initial_state: EmailAgentState, config: dict, email
     try:
         #get checpointer
        
-        agent_app = build_email_agent()
+        # agent_app = build_email_agent()
         # Run until interrupt
         async for event in agent_app.astream(initial_state, config, stream_mode="values"):
             log.debug(f"[EVENT] {email_id}: {event.get('approval_status', 'processing')}")
@@ -550,7 +551,7 @@ async def get_approval_status(email_id: str):
 
 
 @app.post("/api/agent/approve")
-def approve_response_prev(approval: ApprovalResponse):
+async def approve_response_prev(approval: ApprovalResponse):
     """Submit approval decision and resume agent workflow using Command"""
     
     email_id = approval.email_id

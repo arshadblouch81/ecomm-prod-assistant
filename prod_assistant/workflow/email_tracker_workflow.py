@@ -205,7 +205,7 @@ def draft_response(state: EmailAgentState) -> Command[Literal["human_review", "s
             classification.get('urgency') in ['high', 'critical'] or
             classification.get('intent') == 'complex'
         )
-        needs_review=False
+        needs_review=True
         # Route to appropriate next node
 
         log.info("Draft created!!!!!!!!!!")
@@ -220,61 +220,54 @@ def draft_response(state: EmailAgentState) -> Command[Literal["human_review", "s
 
 def human_review(state: EmailAgentState) -> Command[Literal["send_reply", END]]:
     """Pause for human review using interrupt and route based on decision"""
-    try:
             
-        classification = state.get('classification', {})
+    classification = state.get('classification', {})
 
-        # interrupt() must come first - any code before it will re-run on resume
-        approval_request = {
-            "email_id": state['email_id'],
-            "original_email": state['email_content'],
-            "draft_response": state['draft_response'],
-            "urgency": classification.get('urgency'),
-            "intent": classification.get('intent'),
-            "action": "Please review and approve/edit this response",
-            "timestamp": datetime.utcnow().isoformat()
-        }
+    # interrupt() must come first - any code before it will re-run on resume
+    approval_request = {
+        "email_id": state['email_id'],
+        "original_email": state['email_content'],
+        "draft_response": state['draft_response'],
+        "urgency": classification.get('urgency'),
+        "intent": classification.get('intent'),
+        "action": "Please review and approve/edit this response",
+        "timestamp": datetime.utcnow().isoformat()
+    }
 
-        # Store in pending approvals (for API to notify user)
-        pending_approvals[state['email_id']] = {
-            "status": "pending",
-            "data": approval_request
-        }
-        log.info("Pause for human review using interrupt and route based on decision")
-        # This is the ONLY interrupt() call - it returns human's decision
-        # human_decision = interrupt(approval_request)
-        try:
-            human_decision = interrupt(approval_request)
-        except Exception as e:
-            log.error(f"Error calling interrupt: {str(e)}", exc_info=True)
-            # raise
-        
-        log.info("Human response received")
-        # This code runs AFTER approval is received via API
-        if human_decision is None:
-            human_decision = {"approved": False}
+    # Store in pending approvals (for API to notify user)
+    pending_approvals[state['email_id']] = {
+        "status": "pending",
+        "data": approval_request
+    }
+    log.info("Pause for human review using interrupt and route based on decision")
+    # This is the ONLY interrupt() call - it returns human's decision
+    human_decision = interrupt(approval_request)
+    
+    log.info("Human response received")
+    # This code runs AFTER approval is received via API
+    if human_decision is None:
+        human_decision = {"approved": False}
 
-        pending_approvals[state['email_id']]["status"] = "resolved"
+    pending_approvals[state['email_id']]["status"] = "resolved"
 
-        if human_decision.get("approved"):
-            return Command(
-                update={
-                    "draft_response": human_decision.get("edited_response", state['draft_response']),
-                    "approval_status": "approved",
-                    "approval_timestamp": datetime.utcnow().isoformat()
-                },
-                goto="send_reply"
-            )
-        else:
-            return Command(
-                update={
-                    "approval_status": "rejected",
-                    "approval_timestamp": datetime.utcnow().isoformat()
-                },
-                goto=END
-            )
-    except Exception as e:
-        log.error("Error in Human Review - " + str(e))
+    if human_decision.get("approved"):
+        return Command(
+            update={
+                "draft_response": human_decision.get("edited_response", state['draft_response']),
+                "approval_status": "approved",
+                "approval_timestamp": datetime.utcnow().isoformat()
+            },
+            goto="send_reply"
+        )
+    else:
+        return Command(
+            update={
+                "approval_status": "rejected",
+                "approval_timestamp": datetime.utcnow().isoformat()
+            },
+            goto=END
+        )
+    
         
 
 def format_email(state: EmailAgentState) -> dict:
@@ -376,7 +369,7 @@ def build_email_agent():
 
     # Compile with checkpointer for persistence
     # memory = MemorySaver()
-    # checkpointer = AsyncSqliteSaver("checkpoints/email_tracker.db")
+    # memory = AsyncSqliteSaver("checkpoints/email_tracker.db")
 
     app  = workflow.compile(checkpointer=checkpointer)
     return app
