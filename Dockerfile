@@ -13,11 +13,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 
-
-# CMD ["./start.sh"]
-
 EXPOSE 8000
-CMD ["bash", "-c", "python prod_assistant/mcp_servers/product_search_server.py & uvicorn prod_assistant.router.main:app --host 0.0.0.0 --port 8000 --workers 2 "]
+COPY start.sh ./start.sh
+CMD ["./start.sh"]
+
+
+
+# CMD ["bash", "-c", "python prod_assistant/mcp_servers/product_search_server.py & uvicorn prod_assistant.router.main:app --host 0.0.0.0 --port 8000 --workers 2 "]
 
 
 # EXPOSE 8501

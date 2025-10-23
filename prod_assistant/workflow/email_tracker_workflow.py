@@ -41,8 +41,45 @@ os.makedirs("checkpoints", exist_ok=True)
 conn = sqlite3.connect(database="checkpoints/email_tracker.db", check_same_thread=False)
 checkpointer = SqliteSaver(conn=conn)
 
+# def retrieve_all_threads():
+#     all_threads = {}  # Use dict instead of set
 
- 
+#     for checkpoint in checkpointer.list(None):
+#         config = checkpoint.config.get("configurable", {})
+#         thread_id = config.get("thread_id")
+
+#         if thread_id:
+#             all_threads[thread_id] = {
+#                 "status": config.get("status"),
+#                 "data": config.get("content")
+#             }
+
+#     return all_threads  # or list(all_threads.values()) if you want just the data
+def get_latest_states_by_thread():
+    latest_states = {}
+
+    for  checkpoint in checkpointer.list(None):
+        config = checkpoint.config.get("configurable", {})
+        thread_id = config.get("thread_id")
+
+        if thread_id:
+            # Overwrite with latest checkpoint (assumes list is ordered or you want last seen)
+            channel_values = checkpoint.checkpoint.get("channel_values", {})
+
+            latest_states[thread_id] = {
+                "state": channel_values,
+                "status": config.get("status"),
+                "timestamp": config.get("timestamp"),  # optional
+                "content": config.get("content")       # optional
+            }
+            pending_approvals[thread_id] = {
+            "status": "pending",
+            "data": channel_values
+        }
+
+    return latest_states
+
+get_latest_states_by_thread()
 # Define the structure for email classification
 class EmailClassification(TypedDict):
     intent: Literal["question","issue", "bug", "billing", "feature", "complex"]
